@@ -11,7 +11,7 @@
 #include <QNetworkInterface> // Potentially needed for multicast interface selection (advanced)
 #include <QScrollBar> // To auto-scroll the text edit
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
     setupUi();
@@ -40,12 +40,18 @@ void MainWindow::setupUi()
     messageDisplay->setFontFamily("Consolas"); // Monospaced font is good for hex
     mainLayout->addWidget(messageDisplay);
 
+    clearButton = new QPushButton("Clear", centralWidget);
+    connect(clearButton, &QPushButton::clicked,
+            this, &MainWindow::onClearButtonClicked);
+
+    mainLayout->addWidget(clearButton);
+
     // --- Bottom Controls Area ---
     bottomWidget = new QWidget(centralWidget);
     bottomLayout = new QHBoxLayout(bottomWidget);
     bottomLayout->setContentsMargins(0, 5, 0, 0); // Add some top margin
 
-    ipLabel = new QLabel(tr("IP:"), bottomWidget);
+    ipLabel = new QLabel(tr("Multicast Group IP:"), bottomWidget);
     ipLineEdit = new QLineEdit(bottomWidget);
     ipLineEdit->setPlaceholderText(tr("Multicast IP (e.g., 239.255.0.1)"));
 
@@ -77,6 +83,8 @@ void MainWindow::setupUi()
 
 void MainWindow::onConnectButtonClicked()
 {
+    messageDisplay->clear(); // Clear previous messages on new connection
+
     // --- Get and Validate Input ---
     QString ipString = ipLineEdit->text().trimmed();
     QString portString = portLineEdit->text().trimmed();
@@ -115,15 +123,15 @@ void MainWindow::onConnectButtonClicked()
 
     // QHostAddress::AnyIPv4
     // QHostAddress("10.11.81.21")
-
-    if (!udpSocket->bind(QHostAddress::AnyIPv4, port, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
+    auto addr = QHostAddress("0.0.0.0");
+    if (!udpSocket->bind(addr, port, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
         QString errorMsg = tr("Failed to bind to port %1: %2").arg(port).arg(udpSocket->errorString());
         QMessageBox::critical(this, tr("Socket Error"), errorMsg);
         logMessage(QString("Error: %1").arg(errorMsg));
         closeSocket(); // Clean up failed socket
         return;
     }
-    logMessage(QString("Socket bound to port %1.").arg(port));
+    logMessage(QString("Socket bound to %1:%2.").arg(addr.toString()).arg(port));
 
     // --- Join Multicast Group ---
     if (!udpSocket->joinMulticastGroup(groupAddress)) {
@@ -133,16 +141,18 @@ void MainWindow::onConnectButtonClicked()
         closeSocket(); // Clean up failed socket
         return;
     }
+    qDebug() << QString("Multicast Group joined!");
+
 
     // --- Success ---
     currentGroupAddress = groupAddress;
     currentPort = port;
 
     logMessage(QString("Successfully joined multicast group %1 on port %2.")
-                   .arg(currentGroupAddress.toString())
-                   .arg(currentPort));
+               .arg(currentGroupAddress.toString())
+               .arg(currentPort));
 
-    // Update UI state (optional: disable inputs after connecting)
+// Update UI state (optional: disable inputs after connecting)
     ipLineEdit->setEnabled(false);
     portLineEdit->setEnabled(false);
     connectButton->setText(tr("Disconnect")); // Change button text
@@ -150,9 +160,12 @@ void MainWindow::onConnectButtonClicked()
     disconnect(connectButton, &QPushButton::clicked, this, &MainWindow::onConnectButtonClicked);
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::closeSocket); // Now button disconnects
 
-    messageDisplay->clear(); // Clear previous messages on new connection
 }
 
+void MainWindow::onClearButtonClicked(bool checked)
+{
+    messageDisplay->clear();
+}
 
 void MainWindow::readPendingDatagrams()
 {
@@ -181,7 +194,8 @@ void MainWindow::readPendingDatagrams()
                 .arg(hexString);
 
             logMessage(logEntry);
-        } else if (bytesRead == -1) {
+        }
+        else if (bytesRead == -1) {
             logMessage(QString("Error reading datagram: %1").arg(udpSocket->errorString()));
             // Decide if the error is fatal and requires closing the socket
             // For transient errors, you might just log them.

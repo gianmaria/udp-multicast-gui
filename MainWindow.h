@@ -19,11 +19,12 @@ class MainWindow : public QMainWindow
     Q_OBJECT // Essential for signals/slots
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow() override; // Use override for virtual destructors
 
 private slots:
     void onConnectButtonClicked();
+    void onClearButtonClicked(bool checked);
     void readPendingDatagrams();
 
 private:
@@ -32,19 +33,20 @@ private:
     void closeSocket(); // Helper to clean up the socket
 
     // --- UI Elements ---
-    QWidget*     centralWidget = nullptr;
+    QWidget* centralWidget = nullptr;
     QVBoxLayout* mainLayout = nullptr;
-    QTextEdit*   messageDisplay = nullptr;
-    QWidget*     bottomWidget = nullptr; // Widget to hold bottom controls
+    QTextEdit* messageDisplay = nullptr;
+    QWidget* bottomWidget = nullptr; // Widget to hold bottom controls
     QHBoxLayout* bottomLayout = nullptr;
-    QLabel*      ipLabel = nullptr;
-    QLineEdit*   ipLineEdit = nullptr;
-    QLabel*      portLabel = nullptr;
-    QLineEdit*   portLineEdit = nullptr;
+    QLabel* ipLabel = nullptr;
+    QLineEdit* ipLineEdit = nullptr;
+    QLabel* portLabel = nullptr;
+    QLineEdit* portLineEdit = nullptr;
     QPushButton* connectButton = nullptr;
+    QPushButton* clearButton = nullptr;
 
     // --- Networking ---
-    QUdpSocket*  udpSocket = nullptr;
+    QUdpSocket* udpSocket = nullptr;
     QHostAddress currentGroupAddress;
     quint16      currentPort = 0;
 };
