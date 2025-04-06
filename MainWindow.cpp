@@ -10,6 +10,7 @@
 #include <QMessageBox> // For error messages
 #include <QNetworkInterface> // Potentially needed for multicast interface selection (advanced)
 #include <QScrollBar> // To auto-scroll the text edit
+#include <QShortcut>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -40,9 +41,9 @@ void MainWindow::setupUi()
     messageDisplay->setFontFamily("Consolas"); // Monospaced font is good for hex
     mainLayout->addWidget(messageDisplay);
 
-    clearButton = new QPushButton("Clear", centralWidget);
+    clearButton = new QPushButton("C&lear", centralWidget);
     connect(clearButton, &QPushButton::clicked,
-            this, &MainWindow::onClearButtonClicked);
+        this, &MainWindow::onClearButtonClicked);
 
     mainLayout->addWidget(clearButton);
 
@@ -61,7 +62,7 @@ void MainWindow::setupUi()
     // Optional: Add validator for port number
     // portLineEdit->setValidator(new QIntValidator(1, 65535, this));
 
-    connectButton = new QPushButton(tr("Connect"), bottomWidget);
+    connectButton = new QPushButton(tr("&Connect"), bottomWidget);
 
     bottomLayout->addWidget(ipLabel);
     bottomLayout->addWidget(ipLineEdit, 1); // Stretch IP field
@@ -79,6 +80,10 @@ void MainWindow::setupUi()
 
     ipLineEdit->setText("225.0.0.38");
     portLineEdit->setText("6655");
+
+    // Escape Key Shortcut
+    QShortcut* escapeShortcut = new QShortcut(QKeySequence(Qt::Key_Escape), this);
+    connect(escapeShortcut, &QShortcut::activated, this, &QWidget::close);
 }
 
 void MainWindow::onConnectButtonClicked()
@@ -89,20 +94,23 @@ void MainWindow::onConnectButtonClicked()
     QString ipString = ipLineEdit->text().trimmed();
     QString portString = portLineEdit->text().trimmed();
 
-    if (ipString.isEmpty() || portString.isEmpty()) {
+    if (ipString.isEmpty() || portString.isEmpty())
+    {
         QMessageBox::warning(this, tr("Input Error"), tr("IP address and Port cannot be empty."));
         return;
     }
 
     bool portOk;
     quint16 port = portString.toUShort(&portOk); // quint16 is standard for ports
-    if (!portOk || port == 0) {
+    if (!portOk || port == 0)
+    {
         QMessageBox::warning(this, tr("Input Error"), tr("Invalid Port number. Please enter a value between 1 and 65535."));
         return;
     }
 
     QHostAddress groupAddress(ipString);
-    if (groupAddress.isNull() || !groupAddress.isMulticast()) {
+    if (groupAddress.isNull() || !groupAddress.isMulticast())
+    {
         QMessageBox::warning(this, tr("Input Error"), tr("Invalid Multicast IP address."));
         return;
     }
@@ -124,7 +132,8 @@ void MainWindow::onConnectButtonClicked()
     // QHostAddress::AnyIPv4
     // QHostAddress("10.11.81.21")
     auto addr = QHostAddress("0.0.0.0");
-    if (!udpSocket->bind(addr, port, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
+    if (!udpSocket->bind(addr, port, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint))
+    {
         QString errorMsg = tr("Failed to bind to port %1: %2").arg(port).arg(udpSocket->errorString());
         QMessageBox::critical(this, tr("Socket Error"), errorMsg);
         logMessage(QString("Error: %1").arg(errorMsg));
@@ -134,7 +143,8 @@ void MainWindow::onConnectButtonClicked()
     logMessage(QString("Socket bound to %1:%2.").arg(addr.toString()).arg(port));
 
     // --- Join Multicast Group ---
-    if (!udpSocket->joinMulticastGroup(groupAddress)) {
+    if (!udpSocket->joinMulticastGroup(groupAddress))
+    {
         QString errorMsg = tr("Failed to join multicast group %1: %2").arg(groupAddress.toString()).arg(udpSocket->errorString());
         QMessageBox::critical(this, tr("Socket Error"), errorMsg);
         logMessage(QString("Error: %1").arg(errorMsg));
@@ -149,13 +159,13 @@ void MainWindow::onConnectButtonClicked()
     currentPort = port;
 
     logMessage(QString("Successfully joined multicast group %1 on port %2.")
-               .arg(currentGroupAddress.toString())
-               .arg(currentPort));
+        .arg(currentGroupAddress.toString())
+        .arg(currentPort));
 
 // Update UI state (optional: disable inputs after connecting)
     ipLineEdit->setEnabled(false);
     portLineEdit->setEnabled(false);
-    connectButton->setText(tr("Disconnect")); // Change button text
+    connectButton->setText(tr("&Disconnect")); // Change button text
     // Re-route button click (or handle state internally)
     disconnect(connectButton, &QPushButton::clicked, this, &MainWindow::onConnectButtonClicked);
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::closeSocket); // Now button disconnects
@@ -179,11 +189,13 @@ void MainWindow::readPendingDatagrams()
         QHostAddress senderAddress;
         quint16 senderPort;
 
-        qint64 bytesRead = udpSocket->readDatagram(datagram.data(), datagram.size(),
-                                                   &senderAddress, &senderPort);
+        qint64 bytesRead = udpSocket->readDatagram(
+            datagram.data(), datagram.size(),
+            &senderAddress, &senderPort);
 
-        if (bytesRead > 0) {
-            // Convert data to hex string with spaces between bytes
+        if (bytesRead > 0)
+        {
+// Convert data to hex string with spaces between bytes
             QString hexString = QString::fromLatin1(datagram.toHex(' '));
 
             // Format the output message
@@ -195,7 +207,8 @@ void MainWindow::readPendingDatagrams()
 
             logMessage(logEntry);
         }
-        else if (bytesRead == -1) {
+        else if (bytesRead == -1)
+        {
             logMessage(QString("Error reading datagram: %1").arg(udpSocket->errorString()));
             // Decide if the error is fatal and requires closing the socket
             // For transient errors, you might just log them.
@@ -205,9 +218,11 @@ void MainWindow::readPendingDatagrams()
 
 void MainWindow::closeSocket()
 {
-    if (udpSocket) {
-        // Leave the multicast group cleanly
-        if (!currentGroupAddress.isNull()) {
+    if (udpSocket)
+    {
+// Leave the multicast group cleanly
+        if (!currentGroupAddress.isNull())
+        {
             udpSocket->leaveMulticastGroup(currentGroupAddress);
             logMessage(QString("Left multicast group %1.").arg(currentGroupAddress.toString()));
         }
